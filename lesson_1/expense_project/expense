@@ -1,5 +1,50 @@
 #! /usr/bin/env ruby
-
+require 'pry'
 require "pg"
 
-puts "Hello World"
+DB = PG.connect(dbname: "expense_project")
+
+def list_expenses
+  expenses = DB.exec "SELECT * FROM expenses ORDER BY created_on ASC;"
+
+  expenses.each do |tuple|
+    columns = [tuple["id"].rjust(3),
+              tuple["created_on"].rjust(10),
+              tuple["amount"].rjust(12),
+              tuple["memo"] ]
+    
+    puts columns.join("  |  ")
+  end
+end
+
+def show_commands
+  puts <<~TEXT
+    Commands: 
+
+    add AMOUNT MEMO - record a new expense
+    clear - delete all expenses
+    list - list all expenses
+    delete NUMBER - remove expense with id NUMBER
+    search QUERY - list expenses with a matching memo field
+    TEXT
+end
+
+def add_expense(*args)
+  amount, memo, created_on = args.flatten[1..-1]
+
+  if amount.nil? || memo.nil?
+    puts "You must provide an amount and memo"
+  elsif created_on.nil?
+    DB.exec "INSERT INTO expenses (amount, memo)
+             VALUES (#{amount}, '#{memo}')"
+  else
+    DB.exec "INSERT INTO expenses (amount, memo, created_on) 
+             VALUES (#{amount},' #{memo}', #{created_on})"
+  end
+end
+
+case ARGV.first
+when nil then show_commands
+when "list" then list_expenses
+when "add" then add_expense(ARGV)
+end
