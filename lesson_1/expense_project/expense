@@ -7,7 +7,8 @@ require 'pry'
 
 class ExpenseData
   def initialize
-    @connection = PG.connect(dbname: "expense_project")
+    @connection = PG.connect(dbname: "expenses")
+    setup_schema
   end
 
   def list_expenses
@@ -73,6 +74,24 @@ class ExpenseData
     puts "-" * 50
     amount_sum = expenses.field_values('amount').map(&:to_f).sum
     puts "Total #{format('%.2f', amount_sum).rjust(25)}"
+  end
+
+  def setup_schema
+    result = @connection.exec <<~SQL
+      SELECT COUNT(*) FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'expenses'
+    SQL
+
+    if result[0]["count"] == "0"
+      @connection.exec <<~SQL
+        CREATE TABLE expenses (
+          id serial PRIMARY KEY, 
+          amount numeric(6,2) NOT NULL, 
+          memo text NOT NULL, 
+          created_on date NOT NULL
+        );
+      SQL
+    end
   end
 end
 
